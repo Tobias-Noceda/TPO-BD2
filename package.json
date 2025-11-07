@@ -1,0 +1,13 @@
+{
+  "name": "tpo-bd2",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "TPO BD2 - MongoDB and Redis development environment",
+  "scripts": {
+    "test": "node test-dbs.js"
+  },
+  "dependencies": {
+    "mongodb": "^7.0.0",
+    "redis": "^5.9.0"
+  }
+}

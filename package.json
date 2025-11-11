@@ -4,7 +4,10 @@
   "type": "module",
   "description": "TPO BD2 - MongoDB and Redis development environment",
   "scripts": {
-    "test": "node src/bd-checks/test-dbs.js"
+    "test": "node src/bd-checks/test-dbs.js",
+    "query1": "node src/queries/query1.js",
+    "query3": "node src/queries/query3.js",
+    "query8": "node src/queries/query8.js"
   },
   "dependencies": {
     "mongodb": "^7.0.0",

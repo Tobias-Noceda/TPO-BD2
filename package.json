@@ -6,9 +6,11 @@
   "scripts": {
     "test": "node src/bd-checks/test-dbs.js",
     "query1": "node src/queries/query1.js",
+    "query2": "node src/queries/query2.js",
     "query3": "node src/queries/query3.js",
     "query4": "node src/queries/query4.js",
     "query6": "node src/queries/query6.js",
+    "query7": "node src/queries/query7.js",
     "query8": "node src/queries/query8.js",
     "query9": "node src/queries/query9.js",
     "query10": "node src/queries/query10.js"

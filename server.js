@@ -1,7 +1,10 @@
 import express from 'express';
 import cors from 'cors';
-import { MongoClient } from 'mongodb';
+import { Db, MongoClient } from 'mongodb';
+import { createClient } from 'redis';
 import { query1 } from './src/queries/query1.js';
+import { query11 } from './src/queries/query11.js';
+import { query12 } from './src/queries/query12.js';
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -10,28 +13,171 @@ const PORT = process.env.PORT || 3000;
 const mongoClient = new MongoClient('mongodb://mongo:27017');
 const DB_NAME = 'ensurances';
 
+// Redis connection
+const redisClient = createClient({ url: 'redis://redis:6379' });
+
 // Middleware
 app.use(cors());
 app.use(express.json());
 
-// Connect to MongoDB
+// Connect to databases
 let db;
 
 async function connectDB() {
   try {
+    // Connect to MongoDB
     await mongoClient.connect();
     db = mongoClient.db(DB_NAME);
     console.log('✅ Connected to MongoDB');
+    
+    // Connect to Redis
+    await redisClient.connect();
+    console.log('✅ Connected to Redis');
   } catch (error) {
-    console.error('❌ MongoDB connection error:', error);
+    console.error('❌ Database connection error:', error);
     process.exit(1);
   }
 }
 
 // Query 1: Clientes activos con pólizas vigentes
 app.get('/api/clients/active-with-policies', async (req, res) => {
-  const results = await query1(mongoClient);
-  res.json(results);
+  try {
+    const results = await query1(mongoClient);
+    res.json(results);
+  } catch (error) {
+    console.error('Error in query1:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Query 2: Siniestros abiertos con tipo, monto y cliente afectado
+app.get('/api/claims/open-claims', async (req, res) => {
+  try {
+    const cacheKey = 'query2:open_claims';
+    const cacheTTL = 300; // 5 minutes
+    
+    // Try Redis cache first
+    const cached = await redisClient.get(cacheKey);
+    if (cached) {
+      return res.json(JSON.parse(cached));
+    }
+    
+    // Query MongoDB
+    const pipeline = [
+      {
+        $match: {
+          estado: { $in: ['Abierto', 'En proceso'] }
+        }
+      },
+      {
+        $lookup: {
+          from: 'clientes',
+          let: { poliza_num: '$nro_poliza' },
+          pipeline: [
+            {
+              $match: {
+                $expr: {
+                  $in: ['$$poliza_num', '$polizas.nro_poliza']
+                }
+              }
+            },
+            {
+              $project: {
+                _id: 0,
+                id_cliente: 1,
+                nombre: 1,
+                apellido: 1,
+                dni: 1,
+                email: 1,
+                telefono: 1,
+                ciudad: 1,
+                provincia: 1
+              }
+            }
+          ],
+          as: 'cliente'
+        }
+      },
+      {
+        $unwind: {
+          path: '$cliente',
+          preserveNullAndEmptyArrays: true
+        }
+      },
+      {
+        $project: {
+          _id: 0,
+          id_siniestro: 1,
+          nro_poliza: 1,
+          fecha: 1,
+          tipo: 1,
+          monto_estimado: 1,
+          descripcion: 1,
+          estado: 1,
+          cliente: 1
+        }
+      },
+      {
+        $sort: { fecha: -1 }
+      }
+    ];
+    
+    const results = await db.collection('siniestros').aggregate(pipeline).toArray();
+    
+    // Cache in Redis
+    await redisClient.setEx(cacheKey, cacheTTL, JSON.stringify(results));
+    
+    res.json(results);
+  } catch (error) {
+    console.error('Error in query2:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Query 11: Clientes con más de un vehículo asegurado (Redis)
+app.get('/api/clients/multiple-vehicles', async (req, res) => {
+  try {
+    const results = await query11(redisClient);
+    res.json(results);
+  } catch (error) {
+    console.error('Error in query11:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Query 12: Agentes y cantidad de siniestros asociados (Redis)
+app.get('/api/agents/with-sinisters', async (req, res) => {
+  try {
+    const results = await query12(redisClient);
+    
+    // Enrich with agent details from MongoDB
+    const agentIds = results.map(r => r.id_agente);
+    const agents = await db.collection('agentes').find({ 
+      id_agente: { $in: agentIds } 
+    }).toArray();
+    
+    // Create a map for quick lookup
+    const agentMap = new Map(agents.map(a => [a.id_agente, a]));
+    
+    // Merge data
+    const enrichedResults = results.map(r => {
+      const agent = agentMap.get(r.id_agente);
+      return {
+        ...r,
+        nombre: agent?.nombre || '',
+        apellido: agent?.apellido || '',
+        matricula: agent?.matricula || '',
+        email: agent?.email || '',
+        zona: agent?.zona || '',
+        activo: agent?.activo || ''
+      };
+    });
+    
+    res.json(enrichedResults);
+  } catch (error) {
+    console.error('Error in query12:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
 });
 
 // Health check
@@ -54,5 +200,6 @@ start();
 process.on('SIGINT', async () => {
   console.log('\n👋 Shutting down gracefully...');
   await mongoClient.close();
+  await redisClient.quit();
   process.exit(0);
 });

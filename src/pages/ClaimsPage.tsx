@@ -4,14 +4,14 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/Table';
 import { Badge } from '@/components/ui/Badge';
 import { Pagination } from '@/components/ui/Pagination';
-import { queryService, Siniestro } from '@/services/queries';
+import { queryService, Siniestro, SiniestroAbierto } from '@/services/queries';
 
-type ClaimQueryType = 'accidents-last-year' | 'all-claims';
+type ClaimQueryType = 'open-claims' | 'accidents-last-year' | 'all-claims';
 
 export const ClaimsPage: React.FC = () => {
   const [selectedTab, setSelectedTab] = useState<TabsElement>({ 
-    key: 'accidents-last-year', 
-    label: 'Accidentes Último Año' 
+    key: 'open-claims', 
+    label: 'Siniestros Abiertos' 
   });
   const [loading, setLoading] = useState(false);
   const [data, setData] = useState<Siniestro[]>([]);
@@ -19,6 +19,7 @@ export const ClaimsPage: React.FC = () => {
   const [itemsPerPage] = useState(10);
 
   const tabs: TabsElement[] = [
+    { key: 'open-claims', label: 'Siniestros Abiertos' },
     { key: 'accidents-last-year', label: 'Accidentes Último Año' },
     { key: 'all-claims', label: 'Todos los Siniestros' },
   ];
@@ -32,6 +33,9 @@ export const ClaimsPage: React.FC = () => {
     try {
       let result;
       switch (queryType) {
+        case 'open-claims':
+          result = await queryService.getSiniestrosAbiertos();
+          break;
         case 'accidents-last-year':
           result = await queryService.getSiniestrosAccidentes();
           break;
@@ -94,15 +98,19 @@ export const ClaimsPage: React.FC = () => {
       <Card>
         <CardHeader>
           <CardTitle>
-            {selectedTab.key === 'accidents-last-year' 
-              ? 'Siniestros Tipo "Accidente" del Último Año'
-              : 'Todos los Siniestros'
+            {selectedTab.key === 'open-claims'
+              ? 'Siniestros Abiertos con Cliente Afectado'
+              : selectedTab.key === 'accidents-last-year' 
+                ? 'Siniestros Tipo "Accidente" del Último Año'
+                : 'Todos los Siniestros'
             }
           </CardTitle>
           <CardDescription>
-            {selectedTab.key === 'accidents-last-year'
-              ? 'Listado de accidentes reportados en los últimos 12 meses'
-              : 'Listado completo de todos los siniestros registrados'
+            {selectedTab.key === 'open-claims'
+              ? 'Siniestros en estado "Abierto" o "En proceso" con información del cliente'
+              : selectedTab.key === 'accidents-last-year'
+                ? 'Listado de accidentes reportados en los últimos 12 meses'
+                : 'Listado completo de todos los siniestros registrados'
             }
           </CardDescription>
         </CardHeader>
@@ -117,7 +125,7 @@ export const ClaimsPage: React.FC = () => {
                 <TableHead>Monto Estimado</TableHead>
                 <TableHead>Descripción</TableHead>
                 <TableHead>Estado</TableHead>
-                {selectedTab.key === 'accidents-last-year' && <TableHead>Cliente</TableHead>}
+                <TableHead>Cliente</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -153,14 +161,12 @@ export const ClaimsPage: React.FC = () => {
                         {siniestro.estado}
                       </Badge>
                     </TableCell>
-                    {selectedTab.key === 'accidents-last-year' && (
-                      <TableCell>
-                        {siniestro.cliente 
-                          ? `${siniestro.cliente.nombre} ${siniestro.cliente.apellido}`
-                          : '-'
-                        }
-                      </TableCell>
-                    )}
+                    <TableCell>
+                      {siniestro.cliente 
+                        ? `${siniestro.cliente.nombre} ${siniestro.cliente.apellido}`
+                        : '-'
+                      }
+                    </TableCell>
                   </TableRow>
                 ))
               )}

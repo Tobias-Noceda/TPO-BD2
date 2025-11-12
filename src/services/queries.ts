@@ -59,6 +59,36 @@ export interface Siniestro {
   cliente?: Cliente;
 }
 
+export interface SiniestroAbierto extends Siniestro {
+  cliente: Cliente;
+}
+
+export interface ClienteMultiVehiculo {
+  id_cliente: number;
+  nombre: string;
+  apellido: string;
+  dni: string;
+  email: string;
+  telefono: string;
+  direccion: string;
+  ciudad: string;
+  provincia: string;
+  activo: string;
+}
+
+export interface AgenteConSiniestros {
+  id_agente: number;
+  nombre: string;
+  apellido: string;
+  matricula: string;
+  email: string;
+  telefono?: string;
+  zona: string;
+  activo: string;
+  cantidad_siniestros: number;
+  cantidad_polizas: number;
+}
+
 export interface VehiculoConCliente extends Cliente {
   vehiculo: Vehiculo;
   poliza: Poliza;
@@ -96,6 +126,11 @@ class QueryService {
     return this.fetchData<Cliente[]>('/clients/active-with-policies');
   }
 
+  // Query 2: Siniestros abiertos con tipo, monto y cliente afectado
+  async getSiniestrosAbiertos(): Promise<SiniestroAbierto[]> {
+    return this.fetchData<SiniestroAbierto[]>('/claims/open-claims');
+  }
+
   // Query 3: Vehículos asegurados con cliente y póliza
   async getVehiculosAsegurados(): Promise<VehiculoConCliente[]> {
     return this.fetchData<VehiculoConCliente[]>('/clients/insured-vehicles');
@@ -119,6 +154,16 @@ class QueryService {
   // Query 9: Vista de pólizas activas ordenadas por fecha de inicio
   async getPolizasActivasOrdenadas(): Promise<Poliza[]> {
     return this.fetchData<Poliza[]>('/policies/active-ordered');
+  }
+
+  // Query 11: Clientes con más de un vehículo asegurado (Redis)
+  async getClientesMultiplesVehiculos(): Promise<ClienteMultiVehiculo[]> {
+    return this.fetchData<ClienteMultiVehiculo[]>('/clients/multiple-vehicles');
+  }
+
+  // Query 12: Agentes y cantidad de siniestros asociados (Redis)
+  async getAgentesConSiniestros(): Promise<AgenteConSiniestros[]> {
+    return this.fetchData<AgenteConSiniestros[]>('/agents/with-sinisters');
   }
 
   // Generic methods

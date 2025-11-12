@@ -4,9 +4,9 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/Table';
 import { Badge } from '@/components/ui/Badge';
 import { Pagination } from '@/components/ui/Pagination';
-import { queryService, Cliente, VehiculoConCliente, PolizaVencida, PolizaSuspendida } from '@/services/queries';
+import { queryService, Cliente, VehiculoConCliente, PolizaVencida, PolizaSuspendida, ClienteMultiVehiculo } from '@/services/queries';
 
-type ClientQueryType = 'active-policies' | 'insured-vehicles' | 'expired-policies' | 'suspended-policies';
+type ClientQueryType = 'active-policies' | 'insured-vehicles' | 'expired-policies' | 'suspended-policies' | 'multiple-vehicles';
 
 export const ClientsPage: React.FC = () => {
   const [selectedTab, setSelectedTab] = useState<TabsElement>({ key: 'active-policies', label: 'Pólizas Vigentes' });
@@ -18,6 +18,7 @@ export const ClientsPage: React.FC = () => {
   const tabs: TabsElement[] = [
     { key: 'active-policies', label: 'Pólizas Vigentes' },
     { key: 'insured-vehicles', label: 'Vehículos Asegurados' },
+    { key: 'multiple-vehicles', label: 'Múltiples Vehículos' },
     { key: 'expired-policies', label: 'Pólizas Vencidas' },
     { key: 'suspended-policies', label: 'Pólizas Suspendidas' },
   ];
@@ -36,6 +37,9 @@ export const ClientsPage: React.FC = () => {
           break;
         case 'insured-vehicles':
           result = await queryService.getVehiculosAsegurados();
+          break;
+        case 'multiple-vehicles':
+          result = await queryService.getClientesMultiplesVehiculos();
           break;
         case 'expired-policies':
           result = await queryService.getPolizasVencidas();
@@ -99,6 +103,25 @@ export const ClientsPage: React.FC = () => {
             </TableCell>
             <TableCell>
               {cliente.polizas_vigentes?.length || 0} pólizas
+            </TableCell>
+          </TableRow>
+        ));
+
+      case 'multiple-vehicles':
+        return currentData.map((cliente: ClienteMultiVehiculo, idx) => (
+          <TableRow key={idx}>
+            <TableCell>{cliente.nombre} {cliente.apellido}</TableCell>
+            <TableCell>{cliente.dni}</TableCell>
+            <TableCell>{cliente.email}</TableCell>
+            <TableCell>{cliente.telefono}</TableCell>
+            <TableCell>{cliente.ciudad}, {cliente.provincia}</TableCell>
+            <TableCell>
+              <Badge variant={cliente.activo === 'True' ? 'success' : 'danger'}>
+                {cliente.activo === 'True' ? 'Activo' : 'Inactivo'}
+              </Badge>
+            </TableCell>
+            <TableCell>
+              <Badge variant="info">Redis</Badge>
             </TableCell>
           </TableRow>
         ));
@@ -168,6 +191,18 @@ export const ClientsPage: React.FC = () => {
             <TableHead>Pólizas</TableHead>
           </TableRow>
         );
+      case 'multiple-vehicles':
+        return (
+          <TableRow>
+            <TableHead>Cliente</TableHead>
+            <TableHead>DNI</TableHead>
+            <TableHead>Email</TableHead>
+            <TableHead>Teléfono</TableHead>
+            <TableHead>Ubicación</TableHead>
+            <TableHead>Estado</TableHead>
+            <TableHead>Fuente</TableHead>
+          </TableRow>
+        );
       case 'insured-vehicles':
         return (
           <TableRow>
@@ -211,6 +246,8 @@ export const ClientsPage: React.FC = () => {
     switch (selectedTab.key) {
       case 'active-policies':
         return 'Clientes Activos con Pólizas Vigentes';
+      case 'multiple-vehicles':
+        return 'Clientes con Múltiples Vehículos Asegurados (Redis)';
       case 'insured-vehicles':
         return 'Vehículos Asegurados';
       case 'expired-policies':
@@ -226,6 +263,8 @@ export const ClientsPage: React.FC = () => {
     switch (selectedTab.key) {
       case 'active-policies':
         return 'Listado de clientes activos que tienen al menos una póliza vigente';
+      case 'multiple-vehicles':
+        return 'Clientes que poseen más de un vehículo asegurado (datos desde Redis)';
       case 'insured-vehicles':
         return 'Vehículos asegurados con información del cliente y póliza asociada';
       case 'expired-policies':

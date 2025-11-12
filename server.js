@@ -5,6 +5,7 @@ import { createClient } from 'redis';
 import { query1 } from './src/queries/query1.js';
 import { query11 } from './src/queries/query11.js';
 import { query12 } from './src/queries/query12.js';
+import { query2 } from './src/queries/query2.js';
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -12,6 +13,8 @@ const PORT = process.env.PORT || 3000;
 // MongoDB connection
 const mongoClient = new MongoClient('mongodb://mongo:27017');
 const DB_NAME = 'ensurances';
+const cacheTTL = 300; // 5 minutes
+
 
 // Redis connection
 const redisClient = createClient({ url: 'redis://redis:6379' });
@@ -53,80 +56,7 @@ app.get('/api/clients/active-with-policies', async (req, res) => {
 // Query 2: Siniestros abiertos con tipo, monto y cliente afectado
 app.get('/api/claims/open-claims', async (req, res) => {
   try {
-    const cacheKey = 'query2:open_claims';
-    const cacheTTL = 300; // 5 minutes
-    
-    // Try Redis cache first
-    const cached = await redisClient.get(cacheKey);
-    if (cached) {
-      return res.json(JSON.parse(cached));
-    }
-    
-    // Query MongoDB
-    const pipeline = [
-      {
-        $match: {
-          estado: { $in: ['Abierto', 'En proceso'] }
-        }
-      },
-      {
-        $lookup: {
-          from: 'clientes',
-          let: { poliza_num: '$nro_poliza' },
-          pipeline: [
-            {
-              $match: {
-                $expr: {
-                  $in: ['$$poliza_num', '$polizas.nro_poliza']
-                }
-              }
-            },
-            {
-              $project: {
-                _id: 0,
-                id_cliente: 1,
-                nombre: 1,
-                apellido: 1,
-                dni: 1,
-                email: 1,
-                telefono: 1,
-                ciudad: 1,
-                provincia: 1
-              }
-            }
-          ],
-          as: 'cliente'
-        }
-      },
-      {
-        $unwind: {
-          path: '$cliente',
-          preserveNullAndEmptyArrays: true
-        }
-      },
-      {
-        $project: {
-          _id: 0,
-          id_siniestro: 1,
-          nro_poliza: 1,
-          fecha: 1,
-          tipo: 1,
-          monto_estimado: 1,
-          descripcion: 1,
-          estado: 1,
-          cliente: 1
-        }
-      },
-      {
-        $sort: { fecha: -1 }
-      }
-    ];
-    
-    const results = await db.collection('siniestros').aggregate(pipeline).toArray();
-    
-    // Cache in Redis
-    await redisClient.setEx(cacheKey, cacheTTL, JSON.stringify(results));
-    
+    const results = await query2(redisClient, mongoClient);
     res.json(results);
   } catch (error) {
     console.error('Error in query2:', error);

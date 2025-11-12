@@ -67,7 +67,7 @@ app.get('/api/claims/open-claims', async (req, res) => {
 // Query 11: Clientes con más de un vehículo asegurado (Redis)
 app.get('/api/clients/multiple-vehicles', async (req, res) => {
   try {
-    const results = await query11(redisClient);
+    const results = await query11(redisClient, mongoClient);
     res.json(results);
   } catch (error) {
     console.error('Error in query11:', error);
@@ -78,7 +78,7 @@ app.get('/api/clients/multiple-vehicles', async (req, res) => {
 // Query 12: Agentes y cantidad de siniestros asociados (Redis)
 app.get('/api/agents/with-sinisters', async (req, res) => {
   try {
-    const results = await query12(redisClient);
+    const results = await query12(redisClient, mongoClient);
     
     // Enrich with agent details from MongoDB
     const agentIds = results.map(r => r.id_agente);

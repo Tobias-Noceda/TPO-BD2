@@ -31,6 +31,7 @@ export const query2 = async (redisClient, mongoClient) => {
           pipeline: [
             {
               $match: {
+                'polizas.nro_poliza': { $exists: true },
                 $expr: {
                   $in: ['$$poliza_num', '$polizas.nro_poliza']
                 }
@@ -88,12 +89,14 @@ export const query2 = async (redisClient, mongoClient) => {
 // Standalone execution for testing
 if (import.meta.url === `file://${process.argv[1]}`) {
   const redisClient = createClient({ url: 'redis://redis:6379' });
+  const mongoClient = new MongoClient('mongodb://mongo:27017');
   
   try {
     await redisClient.connect();
+    await mongoClient.connect();
     console.log('=== QUERY 2: Siniestros abiertos con tipo, monto y cliente afectado ===\n');
     
-    const results = await query2(redisClient);
+    const results = await query2(redisClient, mongoClient);
     console.log(`Total de siniestros abiertos: ${results.length}\n`);
     console.log(JSON.stringify(results, null, 2));
   } catch (error) {
@@ -101,5 +104,6 @@ if (import.meta.url === `file://${process.argv[1]}`) {
     process.exit(1);
   } finally {
     await redisClient.quit();
+    await mongoClient.close();
   }
 }

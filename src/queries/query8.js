@@ -8,7 +8,6 @@ try {
 
   console.log('=== QUERY 8: Siniestros tipo "Accidente" del último año ===\n');
 
-  // Calcular fecha de hace 1 año desde hoy
   const today = new Date();
   const oneYearAgo = new Date(today);
   oneYearAgo.setFullYear(today.getFullYear() - 1);
@@ -16,7 +15,6 @@ try {
   const pipeline = [
     {
       $addFields: {
-        // Convertir fecha string "DD/MM/YYYY" a Date para poder filtrar
         fecha_date: {
           $dateFromString: {
             dateString: {
@@ -43,7 +41,6 @@ try {
       }
     },
     {
-      // Lookup para traer datos del cliente (opcional, mejora info)
       $lookup: {
         from: "clientes",
         let: { poliza_num: "$nro_poliza" },
@@ -77,13 +74,12 @@ try {
     {
       $unwind: {
         path: "$cliente",
-        preserveNullAndEmptyArrays: true  // Mantiene siniestros sin cliente encontrado
+        preserveNullAndEmptyArrays: true 
       }
     },
     {
       $project: {
         _id: 0,
-        // Todos los campos del siniestro tal cual están
         id_siniestro: 1,
         nro_poliza: 1,
         fecha: 1,
@@ -91,19 +87,11 @@ try {
         monto_estimado: 1,
         descripcion: 1,
         estado: 1,
-        // Datos del cliente tal cual están
         cliente: 1
       }
     },
-    {
-      $sort: { fecha_date: -1 }  // Más recientes primero
-    },
-    {
-      // Eliminar el campo auxiliar fecha_date que solo usamos para filtrar
-      $project: {
-        fecha_date: 0
-      }
-    }
+    {$sort: { fecha_date: -1 }},
+    {$project: {fecha_date: 0}}
   ];
 
   const results = await db.collection('siniestros').aggregate(pipeline).toArray();

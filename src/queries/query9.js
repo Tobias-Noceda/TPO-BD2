@@ -14,7 +14,7 @@ try {
   { $replaceRoot: { newRoot: "$polizas" } },
   {
     $addFields: {
-      fecha_inicio_date: {
+      fecha_inicio_date_format: {
         $dateFromString: {
           dateString: "$fecha_inicio",
           format: "%d/%m/%Y"
@@ -22,10 +22,11 @@ try {
       }
     }
   },
-  { $sort: { fecha_inicio_date: 1 } },
+  { $sort: { fecha_inicio_date_format: 1 } },
 {
     $project: {
-      _id:0
+      _id:0,
+      fecha_inicio_date_format: 0
     }
   }
 ];

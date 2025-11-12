@@ -28,6 +28,12 @@ async function connectDB() {
   }
 }
 
+// Query 1: Clientes activos con pólizas vigentes
+app.get('/api/clients/active-with-policies', async (req, res) => {
+  const results = await query1(mongoClient);
+  res.json(results);
+});
+
 // Health check
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });

@@ -1,9 +1,26 @@
 import { createClient } from 'redis';
 import { MongoClient } from 'mongodb';
 
-export const query12 = async (_redisClient, mongoClient) => {
-  // Query 12: Agentes y cantidad de siniestros asociados (solo Mongo por ahora)
+export const query12 = async (redisClient, mongoClient) => {
+  // Query 12: Agentes y cantidad de siniestros asociados con cache en Redis
   const db = mongoClient.db('ensurances');
+  const cacheKey = 'agents_sinisters';
+  const cacheTTL = 300; // 5 minutos
+
+  // Intentar recuperar desde Redis
+  const cachedAgents = await redisClient.hGetAll(cacheKey);
+  if (Object.keys(cachedAgents).length > 0) {
+    console.log('✓ Retrieved from Redis cache');
+    const results = Object.entries(cachedAgents).map(([agentId, payload]) => {
+      const data = JSON.parse(payload);
+      return {
+        id_agente: parseInt(agentId, 10),
+        ...data
+      };
+    });
+    results.sort((a, b) => b.cantidad_siniestros - a.cantidad_siniestros || b.cantidad_polizas - a.cantidad_polizas);
+    return results;
+  }
 
   const pipeline = [
     { $unwind: '$polizas' },
@@ -55,7 +72,18 @@ export const query12 = async (_redisClient, mongoClient) => {
     { $sort: { cantidad_siniestros: -1, cantidad_polizas: -1 } }
   ];
 
-  return db.collection('clientes').aggregate(pipeline).toArray();
+  const results = await db.collection('clientes').aggregate(pipeline).toArray();
+
+  if (results.length > 0) {
+    for (const agent of results) {
+      const { id_agente, ...data } = agent;
+      await redisClient.hSet(cacheKey, id_agente.toString(), JSON.stringify(data));
+    }
+    await redisClient.expire(cacheKey, cacheTTL);
+    console.log(`✓ Populated Redis with ${results.length} agents`);
+  }
+
+  return results;
 };
 
 // Standalone execution for testing

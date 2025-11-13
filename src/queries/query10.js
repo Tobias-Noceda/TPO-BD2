@@ -1,42 +1,62 @@
 import { MongoClient } from 'mongodb';
+import { createClient } from 'redis';
 
-const mongoClient = new MongoClient('mongodb://mongo:27017');
+const PIPELINE = [
+	{ $unwind: '$polizas' },
+	{
+		$addFields: {
+			pol_estado: '$polizas.estado'
+		}
+	},
+	{
+		$match: {
+			pol_estado: { $eq: 'Suspendida' }
+		}
+	},
+	{
+		$project: {
+			_id: 0,
+			activo: 1,
+			polizas: 1
+		}
+	}
+];
 
-try {
-  await mongoClient.connect();
-  const db = mongoClient.db('ensurances');
+export const query10 = async (redisClient, mongoClient) => {
+	const cacheKey = 'query10:suspended-policies';
+	const cacheTTL = 300;
 
-  console.log('=== QUERY 10: Pólizas suspendidas con estado del cliente ===\n');
+	const cached = await redisClient.get(cacheKey);
+	if (cached) {
+		console.log('✓ Retrieved from Redis cache');
+		return JSON.parse(cached);
+	}
 
-  const pipeline = [
-    { $unwind: "$polizas" },
-  	{
-  	  $addFields: {
-  	    pol_estado: "$polizas.estado"
-  	  }
-  	},
-  	{
-    $match: {
-    		pol_estado: { $eq: 'Suspendida' } 
-    	}
- 	 },
-  	{
-    		$project: {
-    			  _id: 0,
-      			activo: 1,
-    			polizas:1
-   		 }
- 	 }];
+	const db = mongoClient.db('ensurances');
+	const results = await db.collection('clientes').aggregate(PIPELINE).toArray();
 
-  const results = await db.collection('clientes').aggregate(pipeline).toArray();
+	await redisClient.setEx(cacheKey, cacheTTL, JSON.stringify(results));
+	return results;
+};
 
-  console.log(`Total de Pólizas suspendidas con estado del cliente: ${results.length}\n`);
-  console.log(JSON.stringify(results, null, 2));
+if (import.meta.url === `file://${process.argv[1]}`) {
+	const redisClient = createClient({ url: 'redis://redis:6379' });
+	const mongoClient = new MongoClient('mongodb://mongo:27017');
 
-} catch (error) {
-  console.error('Error ejecutando Query 10:', error);
-  process.exit(1);
-} finally {
-  await mongoClient.close();
+	try {
+		await redisClient.connect();
+		await mongoClient.connect();
+		console.log('=== QUERY 10: Pólizas suspendidas con estado del cliente ===');
+
+		const results = await query10(redisClient, mongoClient);
+		console.log(`Total de Pólizas suspendidas con estado del cliente: ${results.length}`);
+		console.log(JSON.stringify(results, null, 2));
+	} catch (error) {
+		console.error('Error ejecutando Query 10:', error);
+		process.exit(1);
+	} finally {
+		await redisClient.quit();
+		await mongoClient.close();
+	}
 }
 

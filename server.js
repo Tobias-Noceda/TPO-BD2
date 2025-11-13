@@ -3,9 +3,17 @@ import cors from 'cors';
 import { Db, MongoClient } from 'mongodb';
 import { createClient } from 'redis';
 import { query1 } from './src/queries/query1.js';
+import { query2 } from './src/queries/query2.js';
+import { query3 } from './src/queries/query3.js';
+import { query4 } from './src/queries/query4.js';
+import { query5 } from './src/queries/query5.js';
+import { query6 } from './src/queries/query6.js';
+import { query7 } from './src/queries/query7.js';
+import { query8 } from './src/queries/query8.js';
+import { query9 } from './src/queries/query9.js';
+import { query10 } from './src/queries/query10.js';
 import { query11 } from './src/queries/query11.js';
 import { query12 } from './src/queries/query12.js';
-import { query2 } from './src/queries/query2.js';
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -60,6 +68,94 @@ app.get('/api/claims/open-claims', async (req, res) => {
     res.json(results);
   } catch (error) {
     console.error('Error in query2:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Query 3: Vehículos asegurados con cliente y póliza
+app.get('/api/clients/insured-vehicles', async (req, res) => {
+  try {
+    const results = await query3(redisClient, mongoClient);
+    res.json(results);
+  } catch (error) {
+    console.error('Error in query3:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Query 4: Clientes sin pólizas activas
+app.get('/api/clients/without-active-policies', async (req, res) => {
+  try {
+    const results = await query4(redisClient, mongoClient);
+    res.json(results);
+  } catch (error) {
+    console.error('Error in query4:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Query 5: Agentes activos con cantidad de pólizas asignadas
+app.get('/api/agents/active-with-policies', async (req, res) => {
+  try {
+    const results = await query5(redisClient, mongoClient);
+    res.json(results);
+  } catch (error) {
+    console.error('Error in query5:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Query 6: Pólizas vencidas con nombre del cliente
+app.get('/api/clients/expired-policies', async (req, res) => {
+  try {
+    const results = await query6(redisClient, mongoClient);
+    res.json(results);
+  } catch (error) {
+    console.error('Error in query6:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Query 7: Top 10 clientes por cobertura total
+app.get('/api/clients/top-coverage', async (req, res) => {
+  try {
+    const results = await query7(redisClient, mongoClient);
+    res.json(results);
+  } catch (error) {
+    console.error('Error in query7:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Query 8: Siniestros tipo "Accidente" del último año
+app.get('/api/claims/accidents-last-year', async (req, res) => {
+  try {
+    const results = await query8(redisClient, mongoClient);
+    res.json(results);
+  } catch (error) {
+    console.error('Error in query8:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Query 9: Vista de pólizas activas ordenadas por fecha de inicio
+app.get('/api/policies/active-ordered', async (req, res) => {
+  try {
+    const results = await query9(redisClient, mongoClient);
+    res.json(results);
+  } catch (error) {
+    console.error('Error in query9:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Query 10: Pólizas suspendidas con estado del cliente
+app.get('/api/clients/suspended-policies', async (req, res) => {
+  try {
+    const results = await query10(redisClient, mongoClient);
+    res.json(results);
+  } catch (error) {
+    console.error('Error in query10:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });

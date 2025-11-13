@@ -74,6 +74,7 @@ export interface ClienteMultiVehiculo {
   ciudad: string;
   provincia: string;
   activo: string;
+  cantidad_vehiculos_asegurados?: number;
 }
 
 export interface AgenteConSiniestros {
@@ -87,6 +88,43 @@ export interface AgenteConSiniestros {
   activo: string;
   cantidad_siniestros: number;
   cantidad_polizas: number;
+}
+
+export interface AgenteConPolizas {
+  id_agente: number;
+  nombre: string;
+  apellido: string;
+  matricula: string;
+  telefono: string;
+  email: string;
+  zona: string;
+  activo: string;
+  cantidad_polizas: number;
+}
+
+export interface ClienteSinPolizasActivas {
+  id_cliente: number;
+  nombre: string;
+  apellido: string;
+  dni: string;
+  email: string;
+  telefono: string;
+  direccion: string;
+  ciudad: string;
+  provincia: string;
+  activo: string;
+}
+
+export interface ClienteTopCobertura {
+  id_cliente: number;
+  nombre: string;
+  apellido: string;
+  dni: string;
+  email: string;
+  telefono: string;
+  ciudad: string;
+  provincia: string;
+  cobertura_total: number;
 }
 
 export interface VehiculoConCliente extends Cliente {
@@ -136,14 +174,24 @@ class QueryService {
     return this.fetchData<VehiculoConCliente[]>('/clients/insured-vehicles');
   }
 
+  // Query 4: Clientes sin pólizas activas
+  async getClientesSinPolizasActivas(): Promise<ClienteSinPolizasActivas[]> {
+    return this.fetchData<ClienteSinPolizasActivas[]>('/clients/without-active-policies');
+  }
+
+  // Query 5: Agentes activos con cantidad de pólizas asignadas
+  async getAgentesActivosConPolizas(): Promise<AgenteConPolizas[]> {
+    return this.fetchData<AgenteConPolizas[]>('/agents/active-with-policies');
+  }
+
   // Query 6: Pólizas vencidas con nombre del cliente
   async getPolizasVencidas(): Promise<PolizaVencida[]> {
     return this.fetchData<PolizaVencida[]>('/clients/expired-policies');
   }
 
-  // Query 10: Pólizas suspendidas con estado del cliente
-  async getPolizasSuspendidas(): Promise<PolizaSuspendida[]> {
-    return this.fetchData<PolizaSuspendida[]>('/clients/suspended-policies');
+  // Query 7: Top 10 clientes por cobertura total
+  async getClientesTopCobertura(): Promise<ClienteTopCobertura[]> {
+    return this.fetchData<ClienteTopCobertura[]>('/clients/top-coverage');
   }
 
   // Query 8: Siniestros tipo "Accidente" del último año
@@ -154,6 +202,11 @@ class QueryService {
   // Query 9: Vista de pólizas activas ordenadas por fecha de inicio
   async getPolizasActivasOrdenadas(): Promise<Poliza[]> {
     return this.fetchData<Poliza[]>('/policies/active-ordered');
+  }
+
+  // Query 10: Pólizas suspendidas con estado del cliente
+  async getPolizasSuspendidas(): Promise<PolizaSuspendida[]> {
+    return this.fetchData<PolizaSuspendida[]>('/clients/suspended-policies');
   }
 
   // Query 11: Clientes con más de un vehículo asegurado (Redis)

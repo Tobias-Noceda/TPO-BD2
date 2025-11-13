@@ -1,12 +1,15 @@
 import { MongoClient } from 'mongodb';
+import { createClient } from 'redis';
 
-const mongoClient = new MongoClient('mongodb://mongo:27017');
+export const query8 = async (redisClient, mongoClient) => {
+  const cacheKey = 'query8:accidents-last-year';
+  const cacheTTL = 300;
 
-try {
-  await mongoClient.connect();
-  const db = mongoClient.db('ensurances');
-
-  console.log('=== QUERY 8: Siniestros tipo "Accidente" del último año ===\n');
+  const cached = await redisClient.get(cacheKey);
+  if (cached) {
+    console.log('✓ Retrieved from Redis cache');
+    return JSON.parse(cached);
+  }
 
   const today = new Date();
   const oneYearAgo = new Date(today);
@@ -19,21 +22,21 @@ try {
           $dateFromString: {
             dateString: {
               $concat: [
-                { $substr: [{ $arrayElemAt: [{ $split: ["$fecha", "/"] }, 2] }, 0, 4] }, // año
-                "-",
-                { $substr: [{ $arrayElemAt: [{ $split: ["$fecha", "/"] }, 1] }, 0, 2] }, // mes
-                "-",
-                { $substr: [{ $arrayElemAt: [{ $split: ["$fecha", "/"] }, 0] }, 0, 2] }  // día
+                { $substr: [{ $arrayElemAt: [{ $split: ['$fecha', '/'] }, 2] }, 0, 4] },
+                '-',
+                { $substr: [{ $arrayElemAt: [{ $split: ['$fecha', '/'] }, 1] }, 0, 2] },
+                '-',
+                { $substr: [{ $arrayElemAt: [{ $split: ['$fecha', '/'] }, 0] }, 0, 2] }
               ]
             },
-            format: "%Y-%m-%d"
+            format: '%Y-%m-%d'
           }
         }
       }
     },
     {
       $match: {
-        tipo: "Accidente",
+        tipo: 'Accidente',
         fecha_date: {
           $gte: oneYearAgo,
           $lte: today
@@ -42,13 +45,13 @@ try {
     },
     {
       $lookup: {
-        from: "clientes",
-        let: { poliza_num: "$nro_poliza" },
+        from: 'clientes',
+        let: { poliza_num: '$nro_poliza' },
         pipeline: [
           {
             $match: {
               $expr: {
-                $in: ["$$poliza_num", "$polizas.nro_poliza"]
+                $in: ['$$poliza_num', '$polizas.nro_poliza']
               }
             }
           },
@@ -68,13 +71,13 @@ try {
             }
           }
         ],
-        as: "cliente"
+        as: 'cliente'
       }
     },
     {
       $unwind: {
-        path: "$cliente",
-        preserveNullAndEmptyArrays: true 
+        path: '$cliente',
+        preserveNullAndEmptyArrays: true
       }
     },
     {
@@ -90,19 +93,35 @@ try {
         cliente: 1
       }
     },
-    {$sort: { fecha_date: -1 }},
-    {$project: {fecha_date: 0}}
+    { $sort: { fecha_date: -1 } },
+    { $project: { fecha_date: 0 } }
   ];
 
+  const db = mongoClient.db('ensurances');
   const results = await db.collection('siniestros').aggregate(pipeline).toArray();
 
-  console.log(`Total de siniestros tipo "Accidente" del último año: ${results.length}\n`);
-  console.log(JSON.stringify(results, null, 2));
+  await redisClient.setEx(cacheKey, cacheTTL, JSON.stringify(results));
+  return results;
+};
 
-} catch (error) {
-  console.error('Error ejecutando Query 8:', error);
-  process.exit(1);
-} finally {
-  await mongoClient.close();
+if (import.meta.url === `file://${process.argv[1]}`) {
+  const redisClient = createClient({ url: 'redis://redis:6379' });
+  const mongoClient = new MongoClient('mongodb://mongo:27017');
+
+  try {
+    await redisClient.connect();
+    await mongoClient.connect();
+    console.log('=== QUERY 8: Siniestros tipo "Accidente" del último año ===');
+
+    const results = await query8(redisClient, mongoClient);
+    console.log(`Total de siniestros tipo "Accidente" del último año: ${results.length}`);
+    console.log(JSON.stringify(results, null, 2));
+  } catch (error) {
+    console.error('Error ejecutando Query 8:', error);
+    process.exit(1);
+  } finally {
+    await redisClient.quit();
+    await mongoClient.close();
+  }
 }
 

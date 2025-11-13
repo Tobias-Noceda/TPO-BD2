@@ -16,8 +16,10 @@ export const query13 = async (client, action, clientInfo) => {
     return db.collection('clientes').deleteOne({id_cliente: clientInfo.id_cliente});
     
     case Action.ADD:
+      if (await db.collection('clientes').find({id_cliente: clientInfo.id_cliente}).countDocuments() > 0) {
+        return error('El cliente ya existe');
+      }
     return db.collection('clientes').insertOne(clientInfo);
-    // return db.collection('clientes').find({id_cliente:206});
     
      case Action.MODIFY:
         return db.collection('clientes').updateOne(
@@ -36,20 +38,44 @@ const mongoClient = new MongoClient('mongodb://mongo:27017');
 try {
   console.log('=== QUERY 13: ABM Clientes ===\n');
 
-  // ClientInfo me lo pasan por la API. Esto es dummy solamente para probar. 
-  const action = Action.ADD;
+  // const results = await query13(mongoClient, action, clientInfo);
+  // console.log(JSON.stringify(results, null, 2));
 
-  const clientInfo = {
+  // ClientInfo y action me lo pasan por la API. Esto es dummy solamente para probar. 
+  let action = Action.ADD;
+  let clientInfo = {
+    id_cliente: 207,
     nombre: 'Juan',
     apellido: 'Pérez',
     email: 'juan.perez@example.com'
   };
 
+  // TEST ADD dummy
   const results = await query13(mongoClient, action, clientInfo);
   console.log(JSON.stringify(results, null, 2));
   const check = await mongoClient.db('ensurances').collection('clientes').find({'_id':results.insertedId}).toArray();
   console.log('Cliente agregado:', JSON.stringify(check, null, 2));
-  
+
+  // TEST MODIFY dummy
+  action = Action.MODIFY;
+  clientInfo = {
+    id_cliente: 207,
+    nombre: 'Juancio',
+    apellido: 'Péresoooon',
+    email: 'juancio.peresooooon@example.com'
+  };
+  const results2 = await query13(mongoClient, action, clientInfo);
+  console.log('Cliente modificado:', JSON.stringify(results2, null, 2));
+  const check2 = await mongoClient.db('ensurances').collection('clientes').find({id_cliente:207}).toArray();
+  console.log('Cliente modificado check:', JSON.stringify(check2, null, 2));
+
+  // TEST DELETE dummy
+  action = Action.DELETE;
+  const results3 = await query13(mongoClient, action, clientInfo);
+  console.log('Cliente eliminado:', JSON.stringify(results3, null, 2));
+  const check3 = await mongoClient.db('ensurances').collection('clientes').find({id_cliente:207}).toArray();
+  console.log('Cliente eliminado check (debería estar vacío):', JSON.stringify(check3, null, 2));
+
 } catch (error) {
   console.error('Error ejecutando Query 13:', error);
   process.exit(1);

@@ -22,7 +22,8 @@
     "query9": "node src/queries/query9.js",
     "query10": "node src/queries/query10.js",
     "query11": "node src/queries/query11.js",
-    "query12": "node src/queries/query12.js"
+    "query12": "node src/queries/query12.js",
+    "query13": "node src/queries/query13.js"
   },
   "dependencies": {
     "clsx": "^2.1.0",

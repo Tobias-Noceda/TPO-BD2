@@ -1,5 +1,6 @@
 import { error } from 'console';
 import { MongoClient } from 'mongodb';
+import { createClient } from 'redis';
 
 const Action = {
   ADD: 'Add',
@@ -7,51 +8,61 @@ const Action = {
   DELETE: 'Delete'
 }
 
-export const query13 = async (client, action, clientInfo) => {
-  await client.connect();
-  const db = client.db('ensurances');
+export const query13 = async (mongoClient, redisClient, action, clientInfo) => {
+
+  const db = mongoClient.db('ensurances');
+  let result;
 
   switch(action) {
     case Action.DELETE:
-    return db.collection('clientes').deleteOne({id_cliente: clientInfo.id_cliente});
-    
+    result = await db.collection('clientes').deleteOne({id_cliente: clientInfo.id_cliente});
+    await redisClient.flushAll();
+    return result;
+
     case Action.ADD:
       if (await db.collection('clientes').countDocuments({id_cliente: clientInfo.id_cliente}) > 0) {
         return error('El cliente ya existe');
       }
-    return db.collection('clientes').insertOne(clientInfo);
-    
+    result = await db.collection('clientes').insertOne(clientInfo);
+    await redisClient.flushAll();
+    return result;
+
      case Action.MODIFY:
-        return db.collection('clientes').updateOne(
+        result = await db.collection('clientes').updateOne(
         {id_cliente: clientInfo.id_cliente},
         { $set: clientInfo},
         {upsert:false} // asumo que si el cliente no existe, no hago nada.
       );
-  
+    await redisClient.flushAll();
+    return result;
+
     default:
       return error('Acción no válida');
   }
 }
 
 const mongoClient = new MongoClient('mongodb://mongo:27017');
-
+const redisClient = createClient({ url: 'redis://redis:6379' });
 try {
   console.log('=== QUERY 13: ABM Clientes ===\n');
 
-  // const results = await query13(mongoClient, action, clientInfo);
+  await mongoClient.connect();
+  await redisClient.connect();
+
+  // const results = await query13(mongoClient, redisClient, action, clientInfo);
   // console.log(JSON.stringify(results, null, 2));
 
   // ClientInfo y action me lo pasan por la API. Esto es dummy solamente para probar. 
   let action = Action.ADD;
   let clientInfo = {
-    id_cliente: 207,
+    id_cliente: 208,
     nombre: 'Juan',
     apellido: 'Pérez',
     email: 'juan.perez@example.com'
   };
 
   // TEST ADD dummy
-  const results = await query13(mongoClient, action, clientInfo);
+  const results = await query13(mongoClient, redisClient, action, clientInfo);
   console.log(JSON.stringify(results, null, 2));
   const check = await mongoClient.db('ensurances').collection('clientes').find({'_id':results.insertedId}).toArray();
   console.log('Cliente agregado:', JSON.stringify(check, null, 2));
@@ -59,21 +70,21 @@ try {
   // TEST MODIFY dummy
   action = Action.MODIFY;
   clientInfo = {
-    id_cliente: 207,
+    id_cliente: 208,
     nombre: 'Juancio',
     apellido: 'Péresoooon',
     email: 'juancio.peresooooon@example.com'
   };
-  const results2 = await query13(mongoClient, action, clientInfo);
+  const results2 = await query13(mongoClient, redisClient, action, clientInfo);
   console.log('Cliente modificado:', JSON.stringify(results2, null, 2));
-  const check2 = await mongoClient.db('ensurances').collection('clientes').find({id_cliente:207}).toArray();
+  const check2 = await mongoClient.db('ensurances').collection('clientes').find({id_cliente:clientInfo.id_cliente}).toArray();
   console.log('Cliente modificado check:', JSON.stringify(check2, null, 2));
 
   // TEST DELETE dummy
   action = Action.DELETE;
-  const results3 = await query13(mongoClient, action, clientInfo);
+  const results3 = await query13(mongoClient, redisClient, action, clientInfo);
   console.log('Cliente eliminado:', JSON.stringify(results3, null, 2));
-  const check3 = await mongoClient.db('ensurances').collection('clientes').find({id_cliente:207}).toArray();
+  const check3 = await mongoClient.db('ensurances').collection('clientes').find({id_cliente:clientInfo.id_cliente}).toArray();
   console.log('Cliente eliminado check (debería estar vacío):', JSON.stringify(check3, null, 2));
 
 } catch (error) {
@@ -81,4 +92,5 @@ try {
   process.exit(1);
 } finally {
   await mongoClient.close();
+  await redisClient.quit();
 }

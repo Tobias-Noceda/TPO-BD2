@@ -1,9 +1,10 @@
 import { error } from 'console';
 import { MongoClient } from 'mongodb';
+import { createClient } from 'redis';
 
-export const query15 = async (client, polizasInfo) => {
-  await client.connect();
-  const db = client.db('ensurances');
+export const query15 = async (mongoClient, redisClient, polizasInfo) => {
+
+  const db = mongoClient.db('ensurances');
 
   // si no existe el agente
       if (await db.collection('agentes').countDocuments({id_agente: polizasInfo.id_agente}) == 0) {
@@ -15,16 +16,20 @@ export const query15 = async (client, polizasInfo) => {
         return error(`Cliente con id ${polizasInfo.id_cliente} no existe`);
       }
   
-
-    return db.collection('clientes').updateOne({id_cliente: polizasInfo.id_cliente}, { $push: { polizas: polizasInfo } });
+    const result = await db.collection('clientes').updateOne({id_cliente: polizasInfo.id_cliente}, { $push: { polizas: polizasInfo } });
+    await redisClient.flushAll();
+    return result;
   }
 
 const mongoClient = new MongoClient('mongodb://mongo:27017');
+const redisClient = createClient({ url: 'redis://redis:6379' });
 
 try {
   console.log('=== QUERY 15: Emisión de nuevas pólizas ===\n');
 
-  // const results = await query15(mongoClient, polizasInfo);
+  await mongoClient.connect();
+  await redisClient.connect();
+  // const results = await query15(mongoClient, redisClient, polizasInfo);
   // console.log(JSON.stringify(results, null, 2));
 
   // PolizasInfo me lo pasan por la API. Esto es dummy solamente para probar. 
@@ -41,7 +46,7 @@ try {
   };
 
   // TEST updateOne dummy
-  const results = await query15(mongoClient, polizasInfo);
+  const results = await query15(mongoClient, redisClient, polizasInfo);
   console.log(JSON.stringify(results, null, 2));
   const check = await mongoClient.db('ensurances').collection('clientes').find({id_cliente: polizasInfo.id_cliente}).toArray();
   console.log('Poliza agregado:', JSON.stringify(check, null, 2));
@@ -51,4 +56,5 @@ try {
   process.exit(1);
 } finally {
   await mongoClient.close();
+  await redisClient.quit();
 }

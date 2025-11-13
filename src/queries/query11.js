@@ -29,8 +29,24 @@ export const query11 = async (redisClient, mongoClient) => {
   
   const pipeline = [
     {
+      $addFields: {
+        vehiculos_asegurados: {
+          $filter: {
+            input: '$vehiculos',
+            as: 'vehiculo',
+            cond: { $eq: ['$$vehiculo.asegurado', 'True'] }
+          }
+        }
+      }
+    },
+    {
+      $addFields: {
+        cantidad_vehiculos_asegurados: { $size: '$vehiculos_asegurados' }
+      }
+    },
+    {
       $match: {
-        'vehiculos.1': { $exists: true } // Tiene al menos 2 vehículos
+        cantidad_vehiculos_asegurados: { $gt: 1 }
       }
     },
     {
@@ -45,7 +61,8 @@ export const query11 = async (redisClient, mongoClient) => {
         direccion: 1,
         ciudad: 1,
         provincia: 1,
-        activo: 1
+        activo: 1,
+        cantidad_vehiculos_asegurados: 1
       }
     }
   ];

@@ -16,7 +16,7 @@ export const query13 = async (client, action, clientInfo) => {
     return db.collection('clientes').deleteOne({id_cliente: clientInfo.id_cliente});
     
     case Action.ADD:
-      if (await db.collection('clientes').find({id_cliente: clientInfo.id_cliente}).countDocuments() > 0) {
+      if (await db.collection('clientes').countDocuments({id_cliente: clientInfo.id_cliente}) > 0) {
         return error('El cliente ya existe');
       }
     return db.collection('clientes').insertOne(clientInfo);

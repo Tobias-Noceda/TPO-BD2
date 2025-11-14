@@ -1,0 +1,30 @@
+{
+	"name": "Existing Dockerfile (compose)",
+	"dockerComposeFile": [
+		"./docker-compose.yml"
+	],
+	"service": "workspace",
+	"workspaceFolder": "/workspace",
+	"runServices": [
+		"mongo",
+		"redis",
+		"mongo-init",
+		"redis-init"
+	],
+	"shutdownAction": "stopCompose",
+	"features": {
+		"ghcr.io/cirolosapio/devcontainers-features/alpine-bash:0": {},
+		"ghcr.io/devcontainers/features/common-utils:2.5.4": {},
+		"ghcr.io/cirolosapio/devcontainers-features/alpine-git:latest": {}
+	},
+	"customizations": {
+		"vscode": {
+			"extensions": [
+				"ms-azuretools.vscode-docker",
+				"mongodb.mongodb-vscode",
+				"cweijan.vscode-redis-client"
+			]
+		}
+	},
+	"postStartCommand": "echo 'Devcontainer started. Mongo and Redis services are starting; init jobs will import CSVs from ../Datasets_TPO_2025-2'"
+}

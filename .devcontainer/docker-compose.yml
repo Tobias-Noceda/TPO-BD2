@@ -1,0 +1,93 @@
+version: '3.8'
+
+networks:
+  redis:
+    driver: bridge
+    internal: true
+  mongo:
+    driver: bridge
+    internal: true
+
+services:
+  workspace:
+    build:
+      context: ..
+      dockerfile: .devcontainer/Dockerfile
+    volumes:
+      - ..:/workspace:cached
+    tty: true
+    command: sleep infinity
+    networks:
+      - default
+    ports:
+      - "80:80"
+      - "8080:8080"
+    depends_on:
+      mongo:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  mongo:
+    image: mongo:latest
+    restart: unless-stopped
+    volumes:
+      - mongo_data:/data/db
+    ports:
+      - "27017:27017"
+    networks:
+      - default
+      - mongo
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:8.2.3-alpine
+    restart: unless-stopped
+    volumes:
+      - redis_data:/data
+    ports:
+      - "6379:6379"
+    networks:
+      - default
+      - redis
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # One-shot init job: imports CSVs into MongoDB
+  mongo-init:
+    image: mongo:latest
+    depends_on:
+      mongo:
+        condition: service_healthy
+    volumes:
+      - ../Datasets_TPO_2025-2:/csv-data:ro
+      - ./scripts:/scripts:ro
+    entrypoint: ["/bin/sh", "/scripts/mongo_init.sh"]
+    restart: "no"
+    networks:
+      - mongo
+
+  # One-shot init job: extracts simple stats into Redis
+  redis-init:
+    image: redis:8.2.3-alpine
+    depends_on:
+      redis:
+        condition: service_healthy
+    volumes:
+      - ../Datasets_TPO_2025-2:/csv-data:ro
+      - ./scripts:/scripts:ro
+    entrypoint: ["/bin/sh", "/scripts/redis_init.sh"]
+    restart: "no"
+    networks:
+      - redis
+
+volumes:
+  mongo_data:
+  redis_data:

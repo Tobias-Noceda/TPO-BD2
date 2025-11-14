@@ -4,23 +4,23 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/Table';
 import { Badge } from '@/components/ui/Badge';
 import { Pagination } from '@/components/ui/Pagination';
-import { queryService, Cliente, VehiculoConCliente, PolizaVencida, PolizaSuspendida, ClienteMultiVehiculo } from '@/services/queries';
+import { queryService, Cliente, ClienteMultiVehiculo, ClienteSinPolizasActivas } from '@/services/queries';
 
-type ClientQueryType = 'active-policies' | 'insured-vehicles' | 'expired-policies' | 'suspended-policies' | 'multiple-vehicles';
+type ClientQueryType = 'all' | 'active-clients' | 'without-active-policies' | 'top-coverage' | 'multiple-vehicles';
 
 export const ClientsPage: React.FC = () => {
-  const [selectedTab, setSelectedTab] = useState<TabsElement>({ key: 'active-policies', label: 'Pólizas Vigentes' });
+  const [selectedTab, setSelectedTab] = useState<TabsElement>({ key: 'all', label: 'Todos los Clientes' });
   const [loading, setLoading] = useState(false);
   const [data, setData] = useState<any[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(10);
 
   const tabs: TabsElement[] = [
-    { key: 'active-policies', label: 'Pólizas Vigentes' },
-    { key: 'insured-vehicles', label: 'Vehículos Asegurados' },
+    { key: 'all', label: 'Todos los Clientes' },
+    { key: 'active-clients', label: 'Clientes Activos' },
+    { key: 'without-active-policies', label: 'Sin Pólizas Activas' },
+    { key: 'top-coverage', label: 'Top Clientes por Cobertura' },
     { key: 'multiple-vehicles', label: 'Múltiples Vehículos' },
-    { key: 'expired-policies', label: 'Pólizas Vencidas' },
-    { key: 'suspended-policies', label: 'Pólizas Suspendidas' },
   ];
 
   useEffect(() => {
@@ -32,20 +32,21 @@ export const ClientsPage: React.FC = () => {
     try {
       let result;
       switch (queryType) {
-        case 'active-policies':
+        case 'all':
+          result = await queryService.getAllClients();
+          break;
+        case 'active-clients':
           result = await queryService.getClientesActivosConPolizas();
           break;
-        case 'insured-vehicles':
-          result = await queryService.getVehiculosAsegurados();
+        case 'without-active-policies':
+          result = await queryService.getClientesSinPolizasActivas();
+          break;
+        case 'top-coverage':
+          const allResults = await queryService.getClientesTopCobertura();
+          result = allResults.slice(0, 10); // Only top 10
           break;
         case 'multiple-vehicles':
           result = await queryService.getClientesMultiplesVehiculos();
-          break;
-        case 'expired-policies':
-          result = await queryService.getPolizasVencidas();
-          break;
-        case 'suspended-policies':
-          result = await queryService.getPolizasSuspendidas();
           break;
       }
       setData(result || []);
@@ -89,7 +90,24 @@ export const ClientsPage: React.FC = () => {
     }
 
     switch (selectedTab.key) {
-      case 'active-policies':
+      case 'all':
+        return currentData.map((cliente: Cliente, idx) => (
+          <TableRow key={idx}>
+            <TableCell>{cliente.id_cliente}</TableCell>
+            <TableCell>{cliente.nombre} {cliente.apellido}</TableCell>
+            <TableCell>{cliente.dni}</TableCell>
+            <TableCell>{cliente.email}</TableCell>
+            <TableCell>{cliente.telefono}</TableCell>
+            <TableCell>{cliente.ciudad}, {cliente.provincia}</TableCell>
+            <TableCell>
+              <Badge variant={cliente.activo === 'True' ? 'success' : 'danger'}>
+                {cliente.activo === 'True' ? 'Activo' : 'Inactivo'}
+              </Badge>
+            </TableCell>
+          </TableRow>
+        ));
+
+      case 'active-clients':
         return currentData.map((cliente: Cliente, idx) => (
           <TableRow key={idx}>
             <TableCell>{cliente.nombre} {cliente.apellido}</TableCell>
@@ -103,6 +121,34 @@ export const ClientsPage: React.FC = () => {
             </TableCell>
             <TableCell>
               {cliente.polizas_vigentes?.length || 0} pólizas
+            </TableCell>
+          </TableRow>
+        ));
+
+      case 'without-active-policies':
+        return currentData.map((cliente: ClienteSinPolizasActivas, idx) => (
+          <TableRow key={idx}>
+            <TableCell>{cliente.nombre} {cliente.apellido}</TableCell>
+            <TableCell>{cliente.dni}</TableCell>
+            <TableCell>{cliente.email}</TableCell>
+            <TableCell>{cliente.telefono}</TableCell>
+            <TableCell>{cliente.ciudad}, {cliente.provincia}</TableCell>
+            <TableCell>
+              <Badge variant={cliente.activo === 'True' ? 'success' : 'danger'}>
+                {cliente.activo === 'True' ? 'Activo' : 'Inactivo'}
+              </Badge>
+            </TableCell>
+          </TableRow>
+        ));
+
+      case 'top-coverage':
+        return currentData.map((cliente: any, idx) => (
+          <TableRow key={idx}>
+            <TableCell>{idx + 1}</TableCell>
+            <TableCell>{cliente.id_cliente}</TableCell>
+            <TableCell>{cliente.nombre} {cliente.apellido}</TableCell>
+            <TableCell>
+              <Badge variant="success">${(cliente.total_cobertura || cliente.cobertura_total || 0).toLocaleString()}</Badge>
             </TableCell>
           </TableRow>
         ));
@@ -126,53 +172,6 @@ export const ClientsPage: React.FC = () => {
           </TableRow>
         ));
 
-      case 'insured-vehicles':
-        return currentData.map((item: VehiculoConCliente, idx) => (
-          <TableRow key={idx}>
-            <TableCell>{item.nombre} {item.apellido}</TableCell>
-            <TableCell>{item.vehiculo.patente}</TableCell>
-            <TableCell>{item.vehiculo.marca} {item.vehiculo.modelo}</TableCell>
-            <TableCell>{item.vehiculo.anio}</TableCell>
-            <TableCell>{item.poliza.nro_poliza}</TableCell>
-            <TableCell>{item.poliza.tipo}</TableCell>
-            <TableCell>
-              <Badge variant="success">Asegurado</Badge>
-            </TableCell>
-          </TableRow>
-        ));
-
-      case 'expired-policies':
-        return currentData.map((item: PolizaVencida, idx) => (
-          <TableRow key={idx}>
-            <TableCell>{item.nombre} {item.apellido}</TableCell>
-            <TableCell>{item.polizas.nro_poliza}</TableCell>
-            <TableCell>{item.polizas.tipo}</TableCell>
-            <TableCell>{item.polizas.fecha_vencimiento}</TableCell>
-            <TableCell>${item.polizas.prima.toLocaleString()}</TableCell>
-            <TableCell>
-              <Badge variant="danger">Vencida</Badge>
-            </TableCell>
-          </TableRow>
-        ));
-
-      case 'suspended-policies':
-        return currentData.map((item: PolizaSuspendida, idx) => (
-          <TableRow key={idx}>
-            <TableCell>{item.polizas.nro_poliza}</TableCell>
-            <TableCell>{item.polizas.tipo}</TableCell>
-            <TableCell>{item.polizas.fecha_inicio}</TableCell>
-            <TableCell>${item.polizas.prima.toLocaleString()}</TableCell>
-            <TableCell>
-              <Badge variant={item.activo === 'True' ? 'success' : 'danger'}>
-                {item.activo === 'True' ? 'Cliente Activo' : 'Cliente Inactivo'}
-              </Badge>
-            </TableCell>
-            <TableCell>
-              <Badge variant="warning">Suspendida</Badge>
-            </TableCell>
-          </TableRow>
-        ));
-
       default:
         return null;
     }
@@ -180,7 +179,19 @@ export const ClientsPage: React.FC = () => {
 
   const renderTableHeaders = () => {
     switch (selectedTab.key) {
-      case 'active-policies':
+      case 'all':
+        return (
+          <TableRow>
+            <TableHead>ID</TableHead>
+            <TableHead>Cliente</TableHead>
+            <TableHead>DNI</TableHead>
+            <TableHead>Email</TableHead>
+            <TableHead>Teléfono</TableHead>
+            <TableHead>Ubicación</TableHead>
+            <TableHead>Estado</TableHead>
+          </TableRow>
+        );
+      case 'active-clients':
         return (
           <TableRow>
             <TableHead>Cliente</TableHead>
@@ -189,6 +200,26 @@ export const ClientsPage: React.FC = () => {
             <TableHead>Ubicación</TableHead>
             <TableHead>Estado</TableHead>
             <TableHead>Pólizas</TableHead>
+          </TableRow>
+        );
+      case 'without-active-policies':
+        return (
+          <TableRow>
+            <TableHead>Cliente</TableHead>
+            <TableHead>DNI</TableHead>
+            <TableHead>Email</TableHead>
+            <TableHead>Teléfono</TableHead>
+            <TableHead>Ubicación</TableHead>
+            <TableHead>Estado</TableHead>
+          </TableRow>
+        );
+      case 'top-coverage':
+        return (
+          <TableRow>
+            <TableHead>Ranking</TableHead>
+            <TableHead>ID</TableHead>
+            <TableHead>Nombre</TableHead>
+            <TableHead>Cobertura Total</TableHead>
           </TableRow>
         );
       case 'multiple-vehicles':
@@ -203,40 +234,6 @@ export const ClientsPage: React.FC = () => {
             <TableHead>Fuente</TableHead>
           </TableRow>
         );
-      case 'insured-vehicles':
-        return (
-          <TableRow>
-            <TableHead>Cliente</TableHead>
-            <TableHead>Patente</TableHead>
-            <TableHead>Vehículo</TableHead>
-            <TableHead>Año</TableHead>
-            <TableHead>Nro. Póliza</TableHead>
-            <TableHead>Tipo</TableHead>
-            <TableHead>Estado</TableHead>
-          </TableRow>
-        );
-      case 'expired-policies':
-        return (
-          <TableRow>
-            <TableHead>Cliente</TableHead>
-            <TableHead>Nro. Póliza</TableHead>
-            <TableHead>Tipo</TableHead>
-            <TableHead>Vencimiento</TableHead>
-            <TableHead>Prima</TableHead>
-            <TableHead>Estado</TableHead>
-          </TableRow>
-        );
-      case 'suspended-policies':
-        return (
-          <TableRow>
-            <TableHead>Nro. Póliza</TableHead>
-            <TableHead>Tipo</TableHead>
-            <TableHead>Inicio</TableHead>
-            <TableHead>Prima</TableHead>
-            <TableHead>Estado Cliente</TableHead>
-            <TableHead>Estado Póliza</TableHead>
-          </TableRow>
-        );
       default:
         return null;
     }
@@ -244,16 +241,16 @@ export const ClientsPage: React.FC = () => {
 
   const getTitle = () => {
     switch (selectedTab.key) {
-      case 'active-policies':
-        return 'Clientes Activos con Pólizas Vigentes';
+      case 'all':
+        return 'Todos los Clientes';
+      case 'active-clients':
+        return 'Clientes Activos';
+      case 'without-active-policies':
+        return 'Clientes Sin Pólizas Activas';
+      case 'top-coverage':
+        return 'Top Clientes por Cobertura';
       case 'multiple-vehicles':
         return 'Clientes con Múltiples Vehículos Asegurados (Redis)';
-      case 'insured-vehicles':
-        return 'Vehículos Asegurados';
-      case 'expired-policies':
-        return 'Pólizas Vencidas';
-      case 'suspended-policies':
-        return 'Pólizas Suspendidas';
       default:
         return 'Clientes';
     }
@@ -261,16 +258,16 @@ export const ClientsPage: React.FC = () => {
 
   const getDescription = () => {
     switch (selectedTab.key) {
-      case 'active-policies':
-        return 'Listado de clientes activos que tienen al menos una póliza vigente';
+      case 'all':
+        return 'Listado completo de todos los clientes registrados en el sistema';
+      case 'active-clients':
+        return 'Listado de clientes activos que tienen al menos una póliza vigente (Query 1)';
+      case 'without-active-policies':
+        return 'Clientes que no tienen ninguna póliza activa (Query 4)';
+      case 'top-coverage':
+        return 'Top 10 clientes ordenados por cobertura total (Query 7)';
       case 'multiple-vehicles':
-        return 'Clientes que poseen más de un vehículo asegurado (datos desde Redis)';
-      case 'insured-vehicles':
-        return 'Vehículos asegurados con información del cliente y póliza asociada';
-      case 'expired-policies':
-        return 'Pólizas vencidas con información del cliente';
-      case 'suspended-policies':
-        return 'Pólizas suspendidas con estado del cliente';
+        return 'Clientes que poseen más de un vehículo asegurado (Query 11 - Redis)';
       default:
         return '';
     }
@@ -283,7 +280,9 @@ export const ClientsPage: React.FC = () => {
         <p className="text-gray-500 mt-1">Gestión de clientes y pólizas</p>
       </div>
 
-      <Tabs options={tabs} selected={selectedTab} onSelect={handleTabSelect} />
+      <div className='flex-row h-fit w-full m-0 p-0 flex justify-between items-center'>
+        <Tabs options={tabs} selected={selectedTab} onSelect={handleTabSelect} />
+      </div>
 
       <Card>
         <CardHeader>

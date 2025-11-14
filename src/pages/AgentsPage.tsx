@@ -4,23 +4,23 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/Table';
 import { Badge } from '@/components/ui/Badge';
 import { Pagination } from '@/components/ui/Pagination';
-import { queryService, Agente, AgenteConSiniestros } from '@/services/queries';
+import { queryService, AgenteConPolizas, AgenteConSiniestros } from '@/services/queries';
 
-type AgentQueryType = 'all' | 'with-sinisters';
+type AgentQueryType = 'with-policies' | 'with-sinisters';
 
 export const AgentsPage: React.FC = () => {
   const [selectedTab, setSelectedTab] = useState<TabsElement>({ 
-    key: 'all', 
-    label: 'Todos los Agentes' 
+    key: 'with-policies', 
+    label: 'Agentes Activos con Pólizas' 
   });
   const [loading, setLoading] = useState(false);
-  const [dataAll, setDataAll] = useState<Agente[]>([]);
+  const [dataPolicies, setDataPolicies] = useState<AgenteConPolizas[]>([]);
   const [dataSinisters, setDataSinisters] = useState<AgenteConSiniestros[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(10);
 
   const tabs: TabsElement[] = [
-    { key: 'all', label: 'Todos los Agentes' },
+    { key: 'with-policies', label: 'Agentes Activos con Pólizas' },
     { key: 'with-sinisters', label: 'Agentes con Siniestros' },
   ];
 
@@ -31,17 +31,17 @@ export const AgentsPage: React.FC = () => {
   const fetchData = async (queryType: AgentQueryType) => {
     setLoading(true);
     try {
-      if (queryType === 'all') {
-        const result = await queryService.getAllAgentes();
-        setDataAll(result || []);
+      if (queryType === 'with-policies') {
+        const result = await queryService.getAgentesActivosConPolizas();
+        setDataPolicies(result || []);
       } else {
         const result = await queryService.getAgentesConSiniestros();
         setDataSinisters(result || []);
       }
     } catch (error) {
       console.error('Error fetching agents:', error);
-      if (queryType === 'all') {
-        setDataAll([]);
+      if (queryType === 'with-policies') {
+        setDataPolicies([]);
       } else {
         setDataSinisters([]);
       }
@@ -55,7 +55,7 @@ export const AgentsPage: React.FC = () => {
     setCurrentPage(1);
   };
 
-  const data = selectedTab.key === 'all' ? dataAll : dataSinisters;
+  const data = selectedTab.key === 'with-policies' ? dataPolicies : dataSinisters;
   const totalPages = Math.ceil(data.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
   const endIndex = startIndex + itemsPerPage;
@@ -73,13 +73,13 @@ export const AgentsPage: React.FC = () => {
       <Card>
         <CardHeader>
           <CardTitle>
-            {selectedTab.key === 'all' 
-              ? 'Listado de Agentes' 
-              : 'Agentes con Cantidad de Siniestros (Redis)'}
+            {selectedTab.key === 'with-policies' 
+              ? 'Agentes Activos con Pólizas' 
+              : 'Agentes con Siniestros (Redis)'}
           </CardTitle>
           <CardDescription>
-            {selectedTab.key === 'all'
-              ? 'Todos los agentes registrados en el sistema'
+            {selectedTab.key === 'with-policies'
+              ? 'Agentes activos ordenados por cantidad de pólizas asignadas'
               : 'Agentes ordenados por cantidad de siniestros asociados a sus pólizas'}
           </CardDescription>
         </CardHeader>
@@ -90,15 +90,12 @@ export const AgentsPage: React.FC = () => {
                 <TableHead>ID</TableHead>
                 <TableHead>Nombre</TableHead>
                 <TableHead>Matrícula</TableHead>
-                {selectedTab.key === 'all' && <TableHead>Teléfono</TableHead>}
+                <TableHead>Teléfono</TableHead>
                 <TableHead>Email</TableHead>
                 <TableHead>Zona</TableHead>
+                <TableHead>Cantidad de Pólizas</TableHead>
                 {selectedTab.key === 'with-sinisters' && (
-                  <>
-                    <TableHead>Pólizas</TableHead>
-                    <TableHead>Siniestros</TableHead>
-                    <TableHead>Ratio</TableHead>
-                  </>
+                  <TableHead>Cantidad de Siniestros</TableHead>
                 )}
                 <TableHead>Estado</TableHead>
               </TableRow>
@@ -106,18 +103,18 @@ export const AgentsPage: React.FC = () => {
             <TableBody>
               {loading ? (
                 <TableRow>
-                  <TableCell colSpan={selectedTab.key === 'all' ? 7 : 9} className="text-center py-8">
+                  <TableCell colSpan={selectedTab.key === 'with-policies' ? 8 : 9} className="text-center py-8">
                     <div className="animate-pulse">Cargando datos...</div>
                   </TableCell>
                 </TableRow>
               ) : data.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={selectedTab.key === 'all' ? 7 : 9} className="text-center py-8 text-gray-500">
+                  <TableCell colSpan={selectedTab.key === 'with-policies' ? 8 : 9} className="text-center py-8 text-gray-500">
                     No hay datos disponibles
                   </TableCell>
                 </TableRow>
-              ) : selectedTab.key === 'all' ? (
-                (currentData as Agente[]).map((agente) => (
+              ) : selectedTab.key === 'with-policies' ? (
+                (currentData as AgenteConPolizas[]).map((agente) => (
                   <TableRow key={agente.id_agente}>
                     <TableCell>{agente.id_agente}</TableCell>
                     <TableCell>{agente.nombre} {agente.apellido}</TableCell>
@@ -126,6 +123,9 @@ export const AgentsPage: React.FC = () => {
                     <TableCell>{agente.email}</TableCell>
                     <TableCell>{agente.zona}</TableCell>
                     <TableCell>
+                      <Badge variant="info">{agente.cantidad_polizas}</Badge>
+                    </TableCell>
+                    <TableCell>
                       <Badge variant={agente.activo === 'True' ? 'success' : 'danger'}>
                         {agente.activo === 'True' ? 'Activo' : 'Inactivo'}
                       </Badge>
@@ -133,39 +133,29 @@ export const AgentsPage: React.FC = () => {
                   </TableRow>
                 ))
               ) : (
-                (currentData as AgenteConSiniestros[]).map((agente) => {
-                  const ratio = agente.cantidad_polizas > 0 
-                    ? ((agente.cantidad_siniestros / agente.cantidad_polizas) * 100).toFixed(1)
-                    : '0.0';
-                  
-                  return (
-                    <TableRow key={agente.id_agente}>
-                      <TableCell>{agente.id_agente}</TableCell>
-                      <TableCell>{agente.nombre} {agente.apellido}</TableCell>
-                      <TableCell>{agente.matricula}</TableCell>
-                      <TableCell>{agente.email}</TableCell>
-                      <TableCell>{agente.zona}</TableCell>
-                      <TableCell>
-                        <Badge variant="info">{agente.cantidad_polizas}</Badge>
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant={agente.cantidad_siniestros > 0 ? 'warning' : 'success'}>
-                          {agente.cantidad_siniestros}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant={parseFloat(ratio) > 50 ? 'danger' : parseFloat(ratio) > 25 ? 'warning' : 'success'}>
-                          {ratio}%
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant={agente.activo === 'True' ? 'success' : 'danger'}>
-                          {agente.activo === 'True' ? 'Activo' : 'Inactivo'}
-                        </Badge>
-                      </TableCell>
-                    </TableRow>
-                  );
-                })
+                (currentData as AgenteConSiniestros[]).map((agente) => (
+                  <TableRow key={agente.id_agente}>
+                    <TableCell>{agente.id_agente}</TableCell>
+                    <TableCell>{agente.nombre} {agente.apellido}</TableCell>
+                    <TableCell>{agente.matricula}</TableCell>
+                    <TableCell>{agente.telefono || '-'}</TableCell>
+                    <TableCell>{agente.email}</TableCell>
+                    <TableCell>{agente.zona}</TableCell>
+                    <TableCell>
+                      <Badge variant="info">{agente.cantidad_polizas}</Badge>
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant={agente.cantidad_siniestros > 0 ? 'warning' : 'success'}>
+                        {agente.cantidad_siniestros}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant={agente.activo === 'True' ? 'success' : 'danger'}>
+                        {agente.activo === 'True' ? 'Activo' : 'Inactivo'}
+                      </Badge>
+                    </TableCell>
+                  </TableRow>
+                ))
               )}
             </TableBody>
           </Table>

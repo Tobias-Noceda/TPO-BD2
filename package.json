@@ -16,6 +16,7 @@
     "query2": "node src/queries/query2.js",
     "query3": "node src/queries/query3.js",
     "query4": "node src/queries/query4.js",
+    "query5": "node src/queries/query5.js",
     "query6": "node src/queries/query6.js",
     "query7": "node src/queries/query7.js",
     "query8": "node src/queries/query8.js",

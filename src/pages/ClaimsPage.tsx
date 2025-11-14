@@ -4,9 +4,9 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/Table';
 import { Badge } from '@/components/ui/Badge';
 import { Pagination } from '@/components/ui/Pagination';
-import { queryService, Siniestro, SiniestroAbierto } from '@/services/queries';
+import { queryService, Siniestro } from '@/services/queries';
 
-type ClaimQueryType = 'open-claims' | 'accidents-last-year' | 'all-claims';
+type ClaimQueryType = 'open-claims' | 'accidents-last-year';
 
 export const ClaimsPage: React.FC = () => {
   const [selectedTab, setSelectedTab] = useState<TabsElement>({ 
@@ -21,7 +21,6 @@ export const ClaimsPage: React.FC = () => {
   const tabs: TabsElement[] = [
     { key: 'open-claims', label: 'Siniestros Abiertos' },
     { key: 'accidents-last-year', label: 'Accidentes Último Año' },
-    { key: 'all-claims', label: 'Todos los Siniestros' },
   ];
 
   useEffect(() => {
@@ -38,9 +37,6 @@ export const ClaimsPage: React.FC = () => {
           break;
         case 'accidents-last-year':
           result = await queryService.getSiniestrosAccidentes();
-          break;
-        case 'all-claims':
-          result = await queryService.getAllSiniestros();
           break;
       }
       setData(result || []);
@@ -100,17 +96,13 @@ export const ClaimsPage: React.FC = () => {
           <CardTitle>
             {selectedTab.key === 'open-claims'
               ? 'Siniestros Abiertos con Cliente Afectado'
-              : selectedTab.key === 'accidents-last-year' 
-                ? 'Siniestros Tipo "Accidente" del Último Año'
-                : 'Todos los Siniestros'
+              : 'Siniestros Tipo "Accidente" del Último Año'
             }
           </CardTitle>
           <CardDescription>
             {selectedTab.key === 'open-claims'
               ? 'Siniestros en estado "Abierto" o "En proceso" con información del cliente'
-              : selectedTab.key === 'accidents-last-year'
-                ? 'Listado de accidentes reportados en los últimos 12 meses'
-                : 'Listado completo de todos los siniestros registrados'
+              : 'Listado de accidentes reportados en los últimos 12 meses'
             }
           </CardDescription>
         </CardHeader>
@@ -120,10 +112,8 @@ export const ClaimsPage: React.FC = () => {
               <TableRow>
                 <TableHead>ID</TableHead>
                 <TableHead>Nro. Póliza</TableHead>
-                <TableHead>Fecha</TableHead>
                 <TableHead>Tipo</TableHead>
                 <TableHead>Monto Estimado</TableHead>
-                <TableHead>Descripción</TableHead>
                 <TableHead>Estado</TableHead>
                 <TableHead>Cliente</TableHead>
               </TableRow>
@@ -131,13 +121,13 @@ export const ClaimsPage: React.FC = () => {
             <TableBody>
               {loading ? (
                 <TableRow>
-                  <TableCell colSpan={8} className="text-center py-8">
+                  <TableCell colSpan={6} className="text-center py-8">
                     <div className="animate-pulse">Cargando datos...</div>
                   </TableCell>
                 </TableRow>
               ) : data.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={8} className="text-center py-8 text-gray-500">
+                  <TableCell colSpan={6} className="text-center py-8 text-gray-500">
                     No hay datos disponibles
                   </TableCell>
                 </TableRow>
@@ -146,16 +136,12 @@ export const ClaimsPage: React.FC = () => {
                   <TableRow key={siniestro.id_siniestro}>
                     <TableCell>{siniestro.id_siniestro}</TableCell>
                     <TableCell>{siniestro.nro_poliza}</TableCell>
-                    <TableCell>{siniestro.fecha}</TableCell>
                     <TableCell>
                       <Badge variant={getTipoVariant(siniestro.tipo)}>
                         {siniestro.tipo}
                       </Badge>
                     </TableCell>
                     <TableCell>${siniestro.monto_estimado.toLocaleString()}</TableCell>
-                    <TableCell className="max-w-xs truncate" title={siniestro.descripcion}>
-                      {siniestro.descripcion}
-                    </TableCell>
                     <TableCell>
                       <Badge variant={getEstadoVariant(siniestro.estado)}>
                         {siniestro.estado}

@@ -1,8 +1,8 @@
 import React from 'react';
-import { Users, Shield, AlertTriangle } from 'lucide-react';
+import { Users, Shield, AlertTriangle, FileText, Car } from 'lucide-react';
 import { cn } from '../ui/utils';
 
-export type Section = 'clients' | 'agents' | 'claims';
+export type Section = 'clients' | 'agents' | 'claims' | 'policies' | 'vehicles';
 
 interface SidebarProps {
   activeSection: Section;
@@ -14,6 +14,8 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeSection, onSectionChange
     { id: 'clients' as Section, label: 'Clientes', icon: Users },
     { id: 'agents' as Section, label: 'Agentes', icon: Shield },
     { id: 'claims' as Section, label: 'Siniestros', icon: AlertTriangle },
+    { id: 'policies' as Section, label: 'Pólizas', icon: FileText },
+    { id: 'vehicles' as Section, label: 'Vehículos', icon: Car },
   ];
 
   return (

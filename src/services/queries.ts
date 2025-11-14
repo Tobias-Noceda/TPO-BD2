@@ -18,22 +18,32 @@ export interface Cliente {
   polizas_vigentes?: Poliza[];
 }
 
+export type Accions = 'create' | 'update' | 'delete';
+
 export interface Poliza {
   nro_poliza: string;
+  id_cliente?: number;
   tipo: string;
   fecha_inicio: string;
-  fecha_vencimiento: string;
-  prima: number;
+  fecha_fin?: string;
+  fecha_vencimiento?: string;
+  prima?: number;
+  prima_mensual?: number;
   estado: string;
-  cobertura: string;
-  id_agente?: number;
+  cobertura?: string;
+  cobertura_total?: number;
+  id_agente?: number | string;
 }
 
 export interface Vehiculo {
+  _id?: string;
+  id_vehiculo?: number;
+  id_cliente?: number;
   patente: string;
   marca: string;
   modelo: string;
   anio: number;
+  nro_chasis?: string;
   asegurado: string;
 }
 
@@ -155,6 +165,52 @@ class QueryService {
       return data;
     } catch (error) {
       console.error(`Error fetching ${endpoint}:`, error);
+      throw error;
+    }
+  }
+
+  // Query: Todos los clientes
+  async getAllClients(): Promise<Cliente[]> {
+    return this.fetchData<Cliente[]>('/clients');
+  }
+
+  // AMB queries clientes
+  async modifyClient(action: Accions, client: Cliente) {
+    let method: string;
+    let endpoint = '/clients';
+    switch (action) {
+      case 'create':
+        method = 'POST';
+        break;
+      case 'update':
+        method = 'PUT';
+        endpoint += `/${client.id_cliente}`;
+        break;
+      case 'delete':
+        method = 'DELETE';
+        endpoint += `/${client.id_cliente}`;
+        break;
+      default:
+        throw new Error('Invalid action');
+    }
+
+    try {
+      const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+        method,
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: action !== 'delete' ? JSON.stringify(client) : null,
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      return data;
+    } catch (error) {
+      console.error(`Error performing ${action} on client:`, error);
       throw error;
     }
   }

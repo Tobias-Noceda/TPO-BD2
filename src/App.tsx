@@ -5,6 +5,8 @@ import { Sidebar, Section } from './components/layout/Sidebar';
 import { ClientsPage } from './pages/ClientsPage';
 import { AgentsPage } from './pages/AgentsPage';
 import { ClaimsPage } from './pages/ClaimsPage';
+import { PoliciesPage } from './pages/PoliciesPage';
+import { VehiclesPage } from './pages/VehiclesPage';
 
 function App() {
   const [activeSection, setActiveSection] = useState<Section>('clients');
@@ -17,6 +19,10 @@ function App() {
         return <AgentsPage />;
       case 'claims':
         return <ClaimsPage />;
+      case 'policies':
+        return <PoliciesPage />;
+      case 'vehicles':
+        return <VehiclesPage />;
       default:
         return <ClientsPage />;
     }

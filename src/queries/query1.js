@@ -46,17 +46,20 @@ export const query1 = async (client) => {
   return await db.collection('clientes').aggregate(pipeline).toArray();
 }
 
-const mongoClient = new MongoClient('mongodb://mongo:27017');
+// Standalone execution for testing
+if (import.meta.url === `file://${process.argv[1]}`) {
+  const mongoClient = new MongoClient('mongodb://mongo:27017');
 
-try {
-  console.log('=== QUERY 1: Clientes activos con pólizas vigentes ===\n');
+  try {
+    console.log('=== QUERY 1: Clientes activos con pólizas vigentes ===\n');
 
-  const results = await query1(mongoClient);
-  console.log(`Total de clientes activos con pólizas vigentes: ${results.length}\n`);
-  console.log(JSON.stringify(results, null, 2));
-} catch (error) {
-  console.error('Error ejecutando Query 1:', error);
-  process.exit(1);
-} finally {
-  await mongoClient.close();
+    const results = await query1(mongoClient);
+    console.log(`Total de clientes activos con pólizas vigentes: ${results.length}\n`);
+    console.log(JSON.stringify(results, null, 2));
+  } catch (error) {
+    console.error('Error ejecutando Query 1:', error);
+    process.exit(1);
+  } finally {
+    await mongoClient.close();
+  }
 }

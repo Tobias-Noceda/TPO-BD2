@@ -1,6 +1,6 @@
 import express from 'express';
 import cors from 'cors';
-import { Db, MongoClient } from 'mongodb';
+import { MongoClient } from 'mongodb';
 import { createClient } from 'redis';
 import { query1 } from './src/queries/query1.js';
 import { query2 } from './src/queries/query2.js';
@@ -14,6 +14,9 @@ import { query9 } from './src/queries/query9.js';
 import { query10 } from './src/queries/query10.js';
 import { query11 } from './src/queries/query11.js';
 import { query12 } from './src/queries/query12.js';
+
+import { allClients } from './persistance/allClients.js';
+import { query13 } from './src/queries/query13.js';
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -49,6 +52,16 @@ async function connectDB() {
     process.exit(1);
   }
 }
+
+app.get('/api/clients', async (req, res) => {
+  try {
+    const clients = await allClients(mongoClient);
+    res.json(clients);
+  } catch (error) {
+    console.error('Error fetching all clients:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
 
 // Query 1: Clientes activos con pólizas vigentes
 app.get('/api/clients/active-with-policies', async (req, res) => {

@@ -21,7 +21,7 @@ export const query13 = async (mongoClient, redisClient, action, clientInfo) => {
 
     case Action.ADD:
       if (await db.collection('clientes').countDocuments({id_cliente: clientInfo.id_cliente}) > 0) {
-        return error('El cliente ya existe');
+        throw new Error(`El cliente con id ${clientInfo.id_cliente} ya existe`);
       }
     result = await db.collection('clientes').insertOne(clientInfo);
     await redisClient.flushAll();
@@ -41,56 +41,158 @@ export const query13 = async (mongoClient, redisClient, action, clientInfo) => {
   }
 }
 
-const mongoClient = new MongoClient('mongodb://mongo:27017');
-const redisClient = createClient({ url: 'redis://redis:6379' });
-try {
-  console.log('=== QUERY 13: ABM Clientes ===\n');
+if (import.meta.url === `file://${process.argv[1]}`) {
+  const mongoClient = new MongoClient('mongodb://mongo:27017');
+  const redisClient = createClient({ url: 'redis://redis:6379' });
+  
+  try {
+    console.log('=== QUERY 13: ABM Clientes ===\n');
 
-  await mongoClient.connect();
-  await redisClient.connect();
+    await mongoClient.connect();
+    await redisClient.connect();
 
-  // const results = await query13(mongoClient, redisClient, action, clientInfo);
-  // console.log(JSON.stringify(results, null, 2));
+    // Obtener argumentos de línea de comandos
+    const args = process.argv.slice(2);
+    
+    if (args.length === 0) {
+      console.error('Error: Debe especificar una acción (Add, Modify, Delete)');
+      console.log('\nUso:');
+      console.log('  Agregar:   npm run query13 Add <campo1=valor1> <campo2=valor2> ...');
+      console.log('             Campos obligatorios: id_cliente, nombre, email');
+      console.log('             Ejemplo: npm run query13 Add id_cliente=209 nombre=Juan email=juan@example.com apellido=Pérez');
+      console.log('  Modificar: npm run query13 Modify <id_cliente> <campo1=valor1> <campo2=valor2> ...');
+      console.log('  Eliminar:  npm run query13 Delete <id_cliente>');
+      process.exit(1);
+    }
 
-  // ClientInfo y action me lo pasan por la API. Esto es dummy solamente para probar. 
-  let action = Action.ADD;
-  let clientInfo = {
-    id_cliente: 208,
-    nombre: 'Juan',
-    apellido: 'Pérez',
-    email: 'juan.perez@example.com'
-  };
+    const action = args[0];
+    let clientInfo = {};
+    let results;
 
-  // TEST ADD dummy
-  const results = await query13(mongoClient, redisClient, action, clientInfo);
-  console.log(JSON.stringify(results, null, 2));
-  const check = await mongoClient.db('ensurances').collection('clientes').find({'_id':results.insertedId}).toArray();
-  console.log('Cliente agregado:', JSON.stringify(check, null, 2));
+    switch(action) {
+      case 'Add':
+        // Validar que se reciban al menos los campos obligatorios
+        if (args.length < 2) {
+          console.error('Error: Debe especificar los campos del cliente');
+          console.log('Uso: npm run query13 Add <campo1=valor1> <campo2=valor2> ...');
+          console.log('Campos obligatorios: id_cliente, nombre, email');
+          console.log('Campos opcionales: apellido, dni, telefono, direccion, ciudad, provincia, activo');
+          console.log('Ejemplo: npm run query13 Add id_cliente=209 nombre=Juan email=juan@example.com apellido=Pérez dni=12345678');
+          process.exit(1);
+        }
+        
+        clientInfo = {};
+        
+        // Parsear los pares campo=valor
+        for (let i = 1; i < args.length; i++) {
+          const [campo, valor] = args[i].split('=');
+          if (!campo || valor === undefined) {
+            console.error(`Error: Formato inválido en "${args[i]}". Use campo=valor`);
+            process.exit(1);
+          }
+          
+          // Convertir id_cliente a número si es necesario
+          if (campo === 'id_cliente') {
+            clientInfo[campo] = parseInt(valor);
+          } else {
+            clientInfo[campo] = valor;
+          }
+        }
+        
+        // Validar campos obligatorios
+        const camposObligatorios = ['id_cliente', 'nombre', 'email'];
+        const camposFaltantes = camposObligatorios.filter(campo => !clientInfo[campo]);
+        
+        if (camposFaltantes.length > 0) {
+          console.error(`Error: Faltan los siguientes campos obligatorios: ${camposFaltantes.join(', ')}`);
+          console.log('Uso: npm run query13 Add id_cliente=<valor> nombre=<valor> email=<valor> [campos_opcionales]');
+          process.exit(1);
+        }
+        
+        console.log('Agregando cliente:', clientInfo);
+        
+        try {
+          results = await query13(mongoClient, redisClient, Action.ADD, clientInfo);
+          console.log('\nResultado:', JSON.stringify(results, null, 2));
+          
+          if (results.insertedId) {
+            const check = await mongoClient.db('ensurances').collection('clientes').find({'_id': results.insertedId}).toArray();
+            console.log('\nCliente agregado exitosamente:', JSON.stringify(check, null, 2));
+          }
+        } catch (err) {
+          console.error('\n❌ Error:', err.message);
+          process.exit(1);
+        }
+        break;
 
-  // TEST MODIFY dummy
-  action = Action.MODIFY;
-  clientInfo = {
-    id_cliente: 208,
-    nombre: 'Juancio',
-    apellido: 'Péresoooon',
-    email: 'juancio.peresooooon@example.com'
-  };
-  const results2 = await query13(mongoClient, redisClient, action, clientInfo);
-  console.log('Cliente modificado:', JSON.stringify(results2, null, 2));
-  const check2 = await mongoClient.db('ensurances').collection('clientes').find({id_cliente:clientInfo.id_cliente}).toArray();
-  console.log('Cliente modificado check:', JSON.stringify(check2, null, 2));
+      case 'Modify':
+        // Validar que se reciba al menos el id_cliente
+        if (args.length < 3) {
+          console.error('Error: Debe especificar el id_cliente y al menos un campo a modificar');
+          console.log('Uso: npm run query13 Modify <id_cliente> <campo1=valor1> <campo2=valor2> ...');
+          console.log('Ejemplo: npm run query13 Modify 208 nombre=Juan apellido=Pérez email=juan@example.com');
+          process.exit(1);
+        }
 
-  // TEST DELETE dummy
-  action = Action.DELETE;
-  const results3 = await query13(mongoClient, redisClient, action, clientInfo);
-  console.log('Cliente eliminado:', JSON.stringify(results3, null, 2));
-  const check3 = await mongoClient.db('ensurances').collection('clientes').find({id_cliente:clientInfo.id_cliente}).toArray();
-  console.log('Cliente eliminado check (debería estar vacío):', JSON.stringify(check3, null, 2));
+        clientInfo = {
+          id_cliente: parseInt(args[1])
+        };
 
-} catch (error) {
-  console.error('Error ejecutando Query 13:', error);
-  process.exit(1);
-} finally {
-  await mongoClient.close();
-  await redisClient.quit();
+        // Parsear los pares campo=valor
+        for (let i = 2; i < args.length; i++) {
+          const [campo, valor] = args[i].split('=');
+          if (!campo || valor === undefined) {
+            console.error(`Error: Formato inválido en "${args[i]}". Use campo=valor`);
+            process.exit(1);
+          }
+          clientInfo[campo] = valor;
+        }
+
+        console.log('Modificando cliente:', clientInfo);
+        results = await query13(mongoClient, redisClient, Action.MODIFY, clientInfo);
+        console.log('\nResultado:', JSON.stringify(results, null, 2));
+        
+        if (results.modifiedCount > 0) {
+          const check = await mongoClient.db('ensurances').collection('clientes').find({id_cliente: clientInfo.id_cliente}).toArray();
+          console.log('\nCliente modificado exitosamente:', JSON.stringify(check, null, 2));
+        } else {
+          console.log('\nAdvertencia: No se modificó ningún cliente. Verifique que el id_cliente exista.');
+        }
+        break;
+
+      case 'Delete':
+        // Validar que se reciba el id_cliente
+        if (args.length < 2) {
+          console.error('Error: Debe especificar el id_cliente a eliminar');
+          console.log('Uso: npm run query13 Delete <id_cliente>');
+          process.exit(1);
+        }
+
+        clientInfo = {
+          id_cliente: parseInt(args[1])
+        };
+
+        console.log('Eliminando cliente con id:', clientInfo.id_cliente);
+        results = await query13(mongoClient, redisClient, Action.DELETE, clientInfo);
+        console.log('\nResultado:', JSON.stringify(results, null, 2));
+        
+        if (results.deletedCount > 0) {
+          console.log(`\nCliente con id ${clientInfo.id_cliente} eliminado exitosamente.`);
+        } else {
+          console.log(`\nAdvertencia: No se encontró ningún cliente con id ${clientInfo.id_cliente}.`);
+        }
+        break;
+
+      default:
+        console.error(`Error: Acción "${action}" no válida. Use Add, Modify o Delete`);
+        process.exit(1);
+    }
+
+  } catch (error) {
+    console.error('Error ejecutando Query 13:', error);
+    process.exit(1);
+  } finally {
+    await mongoClient.close();
+    await redisClient.quit();
+  }
 }

@@ -11,9 +11,10 @@ export default defineConfig({
   },
   server: {
     port: 8080,
+    host: true, // Listen on all addresses for Codespaces
     proxy: {
       '/api': {
-        target: 'http://localhost:80',
+        target: 'http://localhost:3000',
         changeOrigin: true,
       },
     },

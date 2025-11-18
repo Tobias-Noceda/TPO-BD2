@@ -12,6 +12,17 @@
 		"redis-init"
 	],
 	"shutdownAction": "stopCompose",
+	"forwardPorts": [3000, 8080],
+	"portsAttributes": {
+		"3000": {
+			"label": "Backend API",
+			"onAutoForward": "notify"
+		},
+		"8080": {
+			"label": "Frontend (Vite)",
+			"onAutoForward": "openBrowser"
+		}
+	},
 	"features": {
 		"ghcr.io/cirolosapio/devcontainers-features/alpine-bash:0": {},
 		"ghcr.io/devcontainers/features/common-utils:2.5.4": {},

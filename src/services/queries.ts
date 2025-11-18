@@ -1,5 +1,5 @@
-// API Base URL from environment or default
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+// API Base URL from environment or default to relative URL (uses Vite proxy)
+const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
 
 // Types for database entities
 export interface Cliente {

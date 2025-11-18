@@ -110,6 +110,16 @@ if (import.meta.url === `file://${process.argv[1]}`) {
         }
         
         console.log('Agregando cliente:', clientInfo);
+
+        if (!clientInfo.hasOwnProperty('activo')) {
+          clientInfo.activo = "True";
+        }
+        if (!clientInfo.hasOwnProperty('vehiculos')) {
+          clientInfo.vehiculos = [];
+        }
+        if (!clientInfo.hasOwnProperty('polizas')) {
+          clientInfo.polizas = [];
+        }
         
         try {
           results = await query13(mongoClient, redisClient, Action.ADD, clientInfo);
